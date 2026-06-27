@@ -1,5 +1,5 @@
 {
-  "name": "FakturPro",
+  "name": "Manajemen Faktur",
   "description": "Sistem Manajemen Faktur Supplier",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

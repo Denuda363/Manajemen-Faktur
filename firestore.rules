@@ -1,0 +1,96 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isValidInvoice(data) {
+      return data.keys().hasAll(['invoiceNumber', 'supplierName', 'date', 'dueDate', 'amount', 'paidAmount', 'status'])
+        && data.invoiceNumber is string && data.invoiceNumber.size() <= 100
+        && data.supplierName is string && data.supplierName.size() <= 200
+        && data.date is string && data.date.size() <= 30
+        && data.dueDate is string && data.dueDate.size() <= 30
+        && data.amount is number
+        && data.paidAmount is number
+        && data.status is string && data.status in ['UNPAID', 'PARTIAL', 'PAID'];
+    }
+
+    match /invoices/{invoiceId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(invoiceId) && isValidInvoice(incoming());
+      allow update: if isSignedIn() && isValidId(invoiceId) && isValidInvoice(incoming());
+      allow delete: if isSignedIn() && isValidId(invoiceId);
+    }
+
+    function isValidPayment(data) {
+      return data.keys().hasAll(['invoiceIds', 'amount', 'date'])
+        && data.invoiceIds is list && data.invoiceIds.size() <= 1000
+        && data.amount is number
+        && data.date is string && data.date.size() <= 30;
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(paymentId) && isValidPayment(incoming());
+      allow update: if isSignedIn() && isValidId(paymentId) && isValidPayment(incoming());
+      allow delete: if isSignedIn() && isValidId(paymentId);
+    }
+
+    function isValidSupplier(data) {
+      return data.keys().hasAll(['name'])
+        && data.name is string && data.name.size() <= 200;
+    }
+
+    match /suppliers/{supplierId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(supplierId) && isValidSupplier(incoming());
+      allow update: if isSignedIn() && isValidId(supplierId) && isValidSupplier(incoming());
+      allow delete: if isSignedIn() && isValidId(supplierId);
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['username', 'name', 'role'])
+        && data.username is string && data.username.size() <= 100
+        && data.name is string && data.name.size() <= 200
+        && data.role is string && data.role in ['admin', 'user'];
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(userId) && isValidUser(incoming());
+      allow update: if isSignedIn() && isValidId(userId) && isValidUser(incoming());
+      allow delete: if isSignedIn() && isValidId(userId);
+    }
+
+    function isValidSettings(data) {
+      return data.keys().hasAll(['theme', 'navigationPosition', 'backgroundUrl', 'companyProfile'])
+        && data.theme is string && data.theme in ['light', 'dark', 'system']
+        && data.navigationPosition is string && data.navigationPosition in ['left', 'right', 'top', 'bottom']
+        && data.backgroundUrl is string
+        && data.companyProfile is map;
+    }
+
+    match /settings/global {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidSettings(incoming());
+      allow update: if isSignedIn() && isValidSettings(incoming());
+    }
+  }
+}

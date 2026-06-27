@@ -351,156 +351,171 @@ export function InvoiceInput() {
                 )}
               </div>
               
-              <div className="p-0 overflow-x-auto">
-                <table className="w-full text-left text-xs min-w-[900px]">
-                  <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
-                    <tr>
-                      <th className="p-3 w-32">NO. FAKTUR</th>
-                      <th className="p-3 w-32">TGL. FAKTUR</th>
-                      <th className="p-3 w-40">JATUH TEMPO</th>
-                      <th className="p-3 w-28">METODE</th>
-                      <th className="p-3 w-32">JML FAKTUR (Rp)</th>
-                      <th className="p-3 w-28">RETUR (Rp)</th>
-                      <th className="p-3 w-24">PPN RETUR (%)</th>
-                      <th className="p-3 w-32">TOTAL (Rp)</th>
-                      <th className="p-3 w-40">KETERANGAN</th>
-                      <th className="p-3 w-12 text-center">AKSI</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {group.invoices.map((inv, invIndex) => {
-                      const subtotal = inv.subtotal || 0;
-                      const retur = inv.returnAmount || 0;
-                      const ppn = inv.taxRate || 0;
-                      const taxAmount = retur * (ppn / 100);
-                      const total = subtotal - (retur + taxAmount);
+              <div className="p-0 border-t border-slate-100">
+                <div className="divide-y divide-slate-100">
+                  {group.invoices.map((inv, invIndex) => {
+                    const subtotal = inv.subtotal || 0;
+                    const retur = inv.returnAmount || 0;
+                    const ppn = inv.taxRate || 0;
+                    const taxAmount = retur * (ppn / 100);
+                    const total = subtotal - (retur + taxAmount);
 
-                      return (
-                      <tr key={inv.id} className="hover:bg-slate-50 transition-colors bg-white">
-                        <td className="p-3">
-                          <input 
-                            type="text" 
-                            required
-                            value={inv.invoiceNumber}
-                            onChange={(e) => handleInvoiceChange(group.id, inv.id, 'invoiceNumber', e.target.value)}
-                            className="w-full px-2 py-1 bg-white border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono text-indigo-600 font-bold text-xs"
-                            placeholder="INV-..."
-                          />
-                        </td>
-                        <td className="p-3">
-                          <input 
-                            type="date" 
-                            required
-                            value={inv.date}
-                            onChange={(e) => handleInvoiceChange(group.id, inv.id, 'date', e.target.value)}
-                            className="w-full px-2 py-1 bg-white border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-600 text-xs"
-                          />
-                        </td>
-                        <td className="p-3">
-                          <div className="flex flex-col space-y-1">
-                            <select
-                              value={inv.dueDateMode}
-                              onChange={(e) => handleInvoiceChange(group.id, inv.id, 'dueDateMode', e.target.value)}
-                              className="px-2 py-1 bg-white border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-600 text-xs w-full"
-                            >
-                              <option value="terms">Termin (Hari)</option>
-                              <option value="date">Tgl Pasti</option>
-                            </select>
-                            {inv.dueDateMode === 'terms' ? (
-                              <input 
-                                type="number" 
-                                required
-                                min="0"
-                                value={inv.terms}
-                                onChange={(e) => handleInvoiceChange(group.id, inv.id, 'terms', Number(e.target.value))}
-                                className="w-full px-2 py-1 bg-white border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-600 text-center font-mono text-xs"
-                              />
-                            ) : (
-                              <input 
-                                type="date" 
-                                required
-                                value={inv.dueDate}
-                                onChange={(e) => handleInvoiceChange(group.id, inv.id, 'dueDate', e.target.value)}
-                                className="w-full px-2 py-1 bg-white border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-600 text-xs"
-                              />
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <select
-                            value={inv.paymentMethod}
-                            onChange={(e) => handleInvoiceChange(group.id, inv.id, 'paymentMethod', e.target.value)}
-                            className="w-full px-2 py-1 bg-white border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-700 font-bold text-xs"
+                    return (
+                      <div key={inv.id} className="p-4 hover:bg-slate-50/50 transition-colors bg-white relative">
+                        {group.invoices.length > 1 && (
+                          <button 
+                            type="button"
+                            onClick={() => handleRemoveInvoice(group.id, inv.id)}
+                            className="absolute top-4 right-4 p-1.5 text-rose-500 hover:bg-rose-50 rounded transition-colors"
+                            title="Hapus Faktur"
                           >
-                            <option value="TERM">Tempo</option>
-                            <option value="CASH">Tunai</option>
-                          </select>
-                        </td>
-                        <td className="p-3">
-                          <input 
-                            type="number" 
-                            required
-                            min="1"
-                            value={inv.subtotal || ''}
-                            onChange={(e) => handleInvoiceChange(group.id, inv.id, 'subtotal', Number(e.target.value))}
-                            className="w-full px-2 py-1 bg-white border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono text-slate-800 text-xs"
-                            placeholder="0"
-                          />
-                        </td>
-                        <td className="p-3">
-                          <input 
-                            type="number" 
-                            min="0"
-                            value={inv.returnAmount || ''}
-                            onChange={(e) => handleInvoiceChange(group.id, inv.id, 'returnAmount', Number(e.target.value))}
-                            className="w-full px-2 py-1 bg-white border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono text-slate-800 text-xs"
-                            placeholder="0"
-                          />
-                        </td>
-                        <td className="p-3">
-                          <input 
-                            type="number" 
-                            min="0"
-                            value={inv.taxRate}
-                            onChange={(e) => handleInvoiceChange(group.id, inv.id, 'taxRate', Number(e.target.value))}
-                            className="w-full px-2 py-1 bg-white border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono text-slate-800 text-xs text-center"
-                            placeholder="11"
-                          />
-                        </td>
-                        <td className="p-3 font-mono font-bold text-slate-800 text-right">
-                          {total.toLocaleString('id-ID')}
-                        </td>
-                        <td className="p-3">
-                          <input 
-                            type="text" 
-                            value={inv.description || ''}
-                            onChange={(e) => handleInvoiceChange(group.id, inv.id, 'description', e.target.value)}
-                            className="w-full px-2 py-1 bg-white border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-600 text-xs"
-                            placeholder="Ket..."
-                          />
-                        </td>
-                        <td className="p-3 text-center">
-                          {group.invoices.length > 1 && (
-                            <button 
-                              type="button"
-                              onClick={() => handleRemoveInvoice(group.id, inv.id)}
-                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded transition-colors"
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                        
+                        <div className="flex items-center space-x-2 mb-4">
+                          <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-xs font-bold">
+                            {invIndex + 1}
+                          </span>
+                          <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Faktur Baru</span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:pr-10">
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">No. Faktur</label>
+                            <input 
+                              type="text" 
+                              required
+                              value={inv.invoiceNumber}
+                              onChange={(e) => handleInvoiceChange(group.id, inv.id, 'invoiceNumber', e.target.value)}
+                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-mono text-indigo-600 font-bold text-sm transition-all"
+                              placeholder="INV-..."
+                            />
+                          </div>
+                          
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">Tgl. Faktur</label>
+                            <input 
+                              type="date" 
+                              required
+                              value={inv.date}
+                              onChange={(e) => handleInvoiceChange(group.id, inv.id, 'date', e.target.value)}
+                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-700 text-sm transition-all"
+                            />
+                          </div>
+                          
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">Jatuh Tempo</label>
+                            <div className="flex space-x-2">
+                              <select
+                                value={inv.dueDateMode}
+                                onChange={(e) => handleInvoiceChange(group.id, inv.id, 'dueDateMode', e.target.value)}
+                                className="w-2/5 px-2 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-700 text-xs font-medium transition-all"
+                              >
+                                <option value="terms">Hari</option>
+                                <option value="date">Tgl</option>
+                              </select>
+                              {inv.dueDateMode === 'terms' ? (
+                                <input 
+                                  type="number" 
+                                  required
+                                  min="0"
+                                  value={inv.terms}
+                                  onChange={(e) => handleInvoiceChange(group.id, inv.id, 'terms', Number(e.target.value))}
+                                  className="w-3/5 px-3 py-2 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-700 text-center font-mono text-sm transition-all"
+                                  placeholder="30"
+                                />
+                              ) : (
+                                <input 
+                                  type="date" 
+                                  required
+                                  value={inv.dueDate}
+                                  onChange={(e) => handleInvoiceChange(group.id, inv.id, 'dueDate', e.target.value)}
+                                  className="w-3/5 px-2 py-2 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-700 text-xs transition-all"
+                                />
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">Metode Pembayaran</label>
+                            <select
+                              value={inv.paymentMethod}
+                              onChange={(e) => handleInvoiceChange(group.id, inv.id, 'paymentMethod', e.target.value)}
+                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-700 font-bold text-sm transition-all"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    )})}
-                  </tbody>
-                </table>
-                <div className="p-2 border-t border-slate-100 bg-slate-50">
+                              <option value="TERM">Tempo</option>
+                              <option value="CASH">Tunai</option>
+                            </select>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">Jumlah Faktur (Rp)</label>
+                            <input 
+                              type="number" 
+                              required
+                              min="1"
+                              value={inv.subtotal || ''}
+                              onChange={(e) => handleInvoiceChange(group.id, inv.id, 'subtotal', Number(e.target.value))}
+                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-mono text-slate-800 text-sm transition-all"
+                              placeholder="0"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">Retur (Rp)</label>
+                            <input 
+                              type="number" 
+                              min="0"
+                              value={inv.returnAmount || ''}
+                              onChange={(e) => handleInvoiceChange(group.id, inv.id, 'returnAmount', Number(e.target.value))}
+                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-mono text-slate-800 text-sm transition-all"
+                              placeholder="0"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">PPN Retur (%)</label>
+                            <input 
+                              type="number" 
+                              min="0"
+                              value={inv.taxRate}
+                              onChange={(e) => handleInvoiceChange(group.id, inv.id, 'taxRate', Number(e.target.value))}
+                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-mono text-slate-800 text-sm text-center transition-all"
+                              placeholder="11"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">Total Akhir (Rp)</label>
+                            <div className="w-full px-3 py-2 bg-slate-50/80 border border-slate-200 rounded-lg font-mono text-slate-800 text-sm font-bold flex items-center justify-between">
+                              <span className="text-slate-400 font-normal">Rp</span>
+                              <span>{total.toLocaleString('id-ID')}</span>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5 lg:col-span-4">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">Keterangan Tambahan</label>
+                            <input 
+                              type="text" 
+                              value={inv.description || ''}
+                              onChange={(e) => handleInvoiceChange(group.id, inv.id, 'description', e.target.value)}
+                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-600 text-sm transition-all"
+                              placeholder="Catatan atau keterangan faktur..."
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="p-4 border-t border-slate-100 bg-slate-50/50">
                   <button
                     type="button"
                     onClick={() => handleAddInvoice(group.id)}
-                    className="px-3 py-1.5 text-indigo-600 text-xs font-bold rounded hover:bg-indigo-50 flex items-center space-x-1"
+                    className="px-4 py-2 bg-white border border-indigo-200 text-indigo-700 text-xs font-bold rounded-lg shadow-sm hover:bg-indigo-50 hover:border-indigo-300 flex items-center justify-center space-x-2 transition-all w-full md:w-auto"
                   >
-                    <Plus className="w-3 h-3" />
+                    <Plus className="w-4 h-4" />
                     <span>Tambah Faktur untuk {group.supplierName || 'Supplier ini'}</span>
                   </button>
                 </div>

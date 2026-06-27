@@ -169,7 +169,7 @@ export function Layout({ children, currentPage, setCurrentPage }: LayoutProps) {
       isFloating && !isHorizontal ? "m-4 h-[calc(100vh-32px)]" : ""
     )}>
       <div className={cn("p-6", isMinimal ? "border-b border-slate-200" : "border-b border-white/10")}>
-        <h1 className={cn("text-xl font-bold tracking-tight italic", isMinimal ? "text-indigo-600" : "text-indigo-400")}>FakturPro</h1>
+        <h1 className={cn("text-xl font-bold tracking-tight", isMinimal ? "text-indigo-600" : "text-indigo-400")}>Manajemen Faktur</h1>
         <p className={cn("text-[10px] uppercase tracking-widest mt-1 truncate", isMinimal ? "text-slate-500" : "text-white/50")}>{settings.companyProfile.name}</p>
       </div>
       <Navigation />
@@ -209,7 +209,7 @@ export function Layout({ children, currentPage, setCurrentPage }: LayoutProps) {
           getNavBgClass()
         )}>
           <div>
-            <h1 className={cn("text-xl font-bold tracking-tight italic", isMinimal ? "text-indigo-600" : "text-indigo-400")}>FakturPro</h1>
+            <h1 className={cn("text-xl font-bold tracking-tight", isMinimal ? "text-indigo-600" : "text-indigo-400")}>Manajemen Faktur</h1>
             <p className={cn("text-[10px] uppercase", isMinimal ? "text-slate-500" : "text-white/50")}>{currentUser?.name} • {currentUser?.role}</p>
           </div>
           <div className="flex items-center space-x-3">
@@ -240,7 +240,7 @@ export function Layout({ children, currentPage, setCurrentPage }: LayoutProps) {
         >
           <div className={cn("p-6 flex items-center justify-between shrink-0", isMinimal ? "border-b border-slate-200" : "border-b border-white/10")}>
             <div>
-              <h1 className={cn("text-xl font-bold tracking-tight italic", isMinimal ? "text-indigo-600" : "text-indigo-400")}>FakturPro</h1>
+              <h1 className={cn("text-xl font-bold tracking-tight", isMinimal ? "text-indigo-600" : "text-indigo-400")}>Manajemen Faktur</h1>
               <p className={cn("text-[10px] uppercase tracking-widest mt-1", isMinimal ? "text-slate-500" : "text-white/50")}>{settings.companyProfile.name}</p>
             </div>
             <button 

@@ -1,0 +1,95 @@
+{
+  "entities": {
+    "Invoice": {
+      "title": "Invoice",
+      "description": "Represents an invoice.",
+      "type": "object",
+      "properties": {
+        "invoiceNumber": { "type": "string" },
+        "supplierName": { "type": "string" },
+        "date": { "type": "string" },
+        "dueDate": { "type": "string" },
+        "subtotal": { "type": "number" },
+        "returnAmount": { "type": "number" },
+        "taxRate": { "type": "number" },
+        "taxAmount": { "type": "number" },
+        "amount": { "type": "number" },
+        "paidAmount": { "type": "number" },
+        "description": { "type": "string" },
+        "paymentMethod": { "type": "string", "enum": ["CASH", "TERM"] },
+        "status": { "type": "string", "enum": ["UNPAID", "PARTIAL", "PAID"] }
+      },
+      "required": ["invoiceNumber", "supplierName", "date", "dueDate", "amount", "paidAmount", "status"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "Represents a payment against one or more invoices.",
+      "type": "object",
+      "properties": {
+        "invoiceIds": { "type": "array" },
+        "amount": { "type": "number" },
+        "date": { "type": "string" }
+      },
+      "required": ["invoiceIds", "amount", "date"]
+    },
+    "Supplier": {
+      "title": "Supplier",
+      "description": "Represents a supplier.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "address": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "User": {
+      "title": "User",
+      "description": "Represents a system user.",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "user"] }
+      },
+      "required": ["username", "name", "role"]
+    },
+    "AppSettings": {
+      "title": "App Settings",
+      "description": "Global application settings.",
+      "type": "object",
+      "properties": {
+        "theme": { "type": "string", "enum": ["light", "dark", "system"] },
+        "navigationPosition": { "type": "string", "enum": ["left", "right", "top", "bottom"] },
+        "navigationStyle": { "type": "string", "enum": ["solid", "glass", "floating", "minimalist"] },
+        "navigationColor": { "type": "string", "enum": ["slate", "indigo", "rose", "emerald", "amber", "sky"] },
+        "backgroundUrl": { "type": "string" },
+        "companyProfile": { "type": "object" }
+      },
+      "required": ["theme", "navigationPosition", "backgroundUrl", "companyProfile"]
+    }
+  },
+  "firestore": {
+    "invoices/{invoiceId}": {
+      "schema": "Invoice",
+      "description": "Invoices collection."
+    },
+    "payments/{paymentId}": {
+      "schema": "Payment",
+      "description": "Payments collection."
+    },
+    "suppliers/{supplierId}": {
+      "schema": "Supplier",
+      "description": "Suppliers collection."
+    },
+    "users/{userId}": {
+      "schema": "User",
+      "description": "Users collection."
+    },
+    "settings/global": {
+      "schema": "AppSettings",
+      "description": "Global settings document."
+    }
+  }
+}

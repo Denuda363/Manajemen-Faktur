@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AppSettings, Invoice, Payment, Supplier, User } from './types';
+import { collection, doc, setDoc, deleteDoc, onSnapshot, writeBatch } from 'firebase/firestore';
+import { db, auth } from './firebase';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 
 const defaultSettings: AppSettings = {
   theme: 'system',
@@ -21,6 +24,7 @@ interface AppContextType {
   suppliers: Supplier[];
   users: User[];
   currentUser: User | null;
+  firebaseUser: FirebaseUser | null;
   settings: AppSettings;
   addInvoices: (newInvoices: Omit<Invoice, 'id' | 'paidAmount' | 'status'>[]) => void;
   updateInvoice: (id: string, updates: Partial<Invoice>) => void;
@@ -41,51 +45,55 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [invoices, setInvoices] = useState<Invoice[]>(() => {
-    const saved = localStorage.getItem('faktur_invoices');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [payments, setPayments] = useState<Payment[]>(() => {
-    const saved = localStorage.getItem('faktur_payments');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [suppliers, setSuppliers] = useState<Supplier[]>(() => {
-    const saved = localStorage.getItem('faktur_suppliers');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   
-  const [users, setUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem('faktur_users');
-    return saved ? JSON.parse(saved) : [{ id: '1', username: 'admin', password: 'password', name: 'Administrator', role: 'admin' }];
-  });
-
+  // Use a local current user state since the UI might depend on this custom User object.
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('faktur_currentUser');
     return saved ? JSON.parse(saved) : null;
   });
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
 
-  const [settings, setSettings] = useState<AppSettings>(() => {
-    const saved = localStorage.getItem('faktur_settings');
-    return saved ? { ...defaultSettings, ...JSON.parse(saved) } : defaultSettings;
-  });
+  const [settings, setSettings] = useState<AppSettings>(defaultSettings);
 
   useEffect(() => {
-    localStorage.setItem('faktur_invoices', JSON.stringify(invoices));
-  }, [invoices]);
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      setFirebaseUser(user);
+    });
+    return () => unsubscribeAuth();
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem('faktur_payments', JSON.stringify(payments));
-  }, [payments]);
+    if (!firebaseUser) return;
+    const unsubInvoices = onSnapshot(collection(db, 'invoices'), (snapshot) => {
+      setInvoices(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice)));
+    });
+    const unsubPayments = onSnapshot(collection(db, 'payments'), (snapshot) => {
+      setPayments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment)));
+    });
+    const unsubSuppliers = onSnapshot(collection(db, 'suppliers'), (snapshot) => {
+      setSuppliers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Supplier)));
+    });
+    const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+      setUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)));
+    });
+    const unsubSettings = onSnapshot(doc(db, 'settings', 'global'), (docSnap) => {
+      if (docSnap.exists()) {
+        setSettings({ ...defaultSettings, ...(docSnap.data() as AppSettings) });
+      }
+    });
 
-  useEffect(() => {
-    localStorage.setItem('faktur_suppliers', JSON.stringify(suppliers));
-  }, [suppliers]);
-  
-  useEffect(() => {
-    localStorage.setItem('faktur_users', JSON.stringify(users));
-  }, [users]);
+    return () => {
+      unsubInvoices();
+      unsubPayments();
+      unsubSuppliers();
+      unsubUsers();
+      unsubSettings();
+    };
+  }, [firebaseUser]);
 
   useEffect(() => {
     if (currentUser) {
@@ -96,8 +104,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [currentUser]);
 
   useEffect(() => {
-    localStorage.setItem('faktur_settings', JSON.stringify(settings));
-    
     // Apply theme
     if (settings.theme === 'dark' || (settings.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
       document.documentElement.classList.add('dark');
@@ -106,95 +112,109 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [settings]);
 
-  const addInvoices = (newInvoices: Omit<Invoice, 'id' | 'paidAmount' | 'status'>[]) => {
-    const toAdd: Invoice[] = newInvoices.map((inv) => ({
-      ...inv,
-      id: Math.random().toString(36).substr(2, 9),
-      paidAmount: 0,
-      status: 'UNPAID',
-    }));
-    setInvoices((prev) => [...prev, ...toAdd]);
+  const addInvoices = async (newInvoices: Omit<Invoice, 'id' | 'paidAmount' | 'status'>[]) => {
+    if (!firebaseUser) return;
+    const batch = writeBatch(db);
+    newInvoices.forEach(inv => {
+      const id = doc(collection(db, 'invoices')).id;
+      const ref = doc(db, 'invoices', id);
+      batch.set(ref, {
+        ...inv,
+        paidAmount: 0,
+        status: 'UNPAID',
+      });
+    });
+    await batch.commit();
   };
 
-  const updateInvoice = (id: string, updates: Partial<Invoice>) => {
-    setInvoices((prev) => prev.map((inv) => {
-      if (inv.id === id) {
-        const updated = { ...inv, ...updates };
-        // Recalculate status if amount changes
-        let status: Invoice['status'] = updated.status;
-        if (updated.paidAmount >= updated.amount) status = 'PAID';
-        else if (updated.paidAmount > 0) status = 'PARTIAL';
-        else status = 'UNPAID';
-        return { ...updated, status };
-      }
-      return inv;
-    }));
-  };
-
-  const deleteInvoice = (id: string) => {
-    setInvoices((prev) => prev.filter((inv) => inv.id !== id));
-  };
-
-  const addPayment = (invoiceIds: string[], amounts: Record<string, number>) => {
-    const totalAmount = Object.values(amounts).reduce((sum, val) => sum + val, 0);
-    const paymentId = Math.random().toString(36).substr(2, 9);
+  const updateInvoice = async (id: string, updates: Partial<Invoice>) => {
+    if (!firebaseUser) return;
+    const inv = invoices.find(i => i.id === id);
+    if (!inv) return;
+    const updated = { ...inv, ...updates };
+    let status: Invoice['status'] = updated.status;
+    if (updated.paidAmount >= updated.amount) status = 'PAID';
+    else if (updated.paidAmount > 0) status = 'PARTIAL';
+    else status = 'UNPAID';
     
-    const newPayment: Payment = {
-      id: paymentId,
+    await setDoc(doc(db, 'invoices', id), { ...updated, status }, { merge: true });
+  };
+
+  const deleteInvoice = async (id: string) => {
+    if (!firebaseUser) return;
+    await deleteDoc(doc(db, 'invoices', id));
+  };
+
+  const addPayment = async (invoiceIds: string[], amounts: Record<string, number>) => {
+    if (!firebaseUser) return;
+    const totalAmount = Object.values(amounts).reduce((sum, val) => sum + val, 0);
+    const paymentId = doc(collection(db, 'payments')).id;
+    const newPayment: Omit<Payment, 'id'> = {
       invoiceIds,
       amount: totalAmount,
       date: new Date().toISOString(),
     };
 
-    setPayments((prev) => [...prev, newPayment]);
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'payments', paymentId), newPayment);
 
-    setInvoices((prev) =>
-      prev.map((inv) => {
-        if (amounts[inv.id]) {
-          const newPaidAmount = inv.paidAmount + amounts[inv.id];
-          let status: Invoice['status'] = inv.status;
-          if (newPaidAmount >= inv.amount) status = 'PAID';
-          else if (newPaidAmount > 0) status = 'PARTIAL';
-          return { ...inv, paidAmount: newPaidAmount, status };
-        }
-        return inv;
-      })
-    );
+    for (const invId of invoiceIds) {
+      const inv = invoices.find(i => i.id === invId);
+      if (inv && amounts[invId]) {
+        const newPaidAmount = inv.paidAmount + amounts[invId];
+        let status: Invoice['status'] = inv.status;
+        if (newPaidAmount >= inv.amount) status = 'PAID';
+        else if (newPaidAmount > 0) status = 'PARTIAL';
+        batch.set(doc(db, 'invoices', invId), { paidAmount: newPaidAmount, status }, { merge: true });
+      }
+    }
+    
+    await batch.commit();
   };
 
-  const updateSettings = (newSettings: Partial<AppSettings>) => {
-    setSettings((prev) => ({ ...prev, ...newSettings }));
+  const updateSettings = async (newSettings: Partial<AppSettings>) => {
+    if (!firebaseUser) return;
+    await setDoc(doc(db, 'settings', 'global'), newSettings, { merge: true });
   };
 
-  const addSupplier = (supplier: Omit<Supplier, 'id'>) => {
-    setSuppliers((prev) => [...prev, { ...supplier, id: Math.random().toString(36).substr(2, 9) }]);
+  const addSupplier = async (supplier: Omit<Supplier, 'id'>) => {
+    if (!firebaseUser) return;
+    const id = doc(collection(db, 'suppliers')).id;
+    await setDoc(doc(db, 'suppliers', id), supplier);
   };
 
-  const updateSupplier = (id: string, updates: Partial<Supplier>) => {
-    setSuppliers((prev) => prev.map((s) => s.id === id ? { ...s, ...updates } : s));
+  const updateSupplier = async (id: string, updates: Partial<Supplier>) => {
+    if (!firebaseUser) return;
+    await setDoc(doc(db, 'suppliers', id), updates, { merge: true });
   };
 
-  const deleteSupplier = (id: string) => {
-    setSuppliers((prev) => prev.filter((s) => s.id !== id));
+  const deleteSupplier = async (id: string) => {
+    if (!firebaseUser) return;
+    await deleteDoc(doc(db, 'suppliers', id));
   };
   
-  const addUser = (user: Omit<User, 'id'>) => {
-    setUsers((prev) => [...prev, { ...user, id: Math.random().toString(36).substr(2, 9) }]);
+  const addUser = async (user: Omit<User, 'id'>) => {
+    if (!firebaseUser) return;
+    const id = doc(collection(db, 'users')).id;
+    await setDoc(doc(db, 'users', id), user);
   };
 
-  const updateUser = (id: string, updates: Partial<User>) => {
-    setUsers((prev) => prev.map((u) => u.id === id ? { ...u, ...updates } : u));
+  const updateUser = async (id: string, updates: Partial<User>) => {
+    if (!firebaseUser) return;
+    await setDoc(doc(db, 'users', id), updates, { merge: true });
     if (currentUser && currentUser.id === id) {
        setCurrentUser({ ...currentUser, ...updates });
     }
   };
 
-  const deleteUser = (id: string) => {
-    setUsers((prev) => prev.filter((u) => u.id !== id));
+  const deleteUser = async (id: string) => {
+    if (!firebaseUser) return;
+    await deleteDoc(doc(db, 'users', id));
   };
   
   const login = (username: string, password?: string) => {
-    const user = users.find(u => u.username === username && u.password === password);
+    // With Google Auth, we might not use password for checking, just find by username
+    const user = users.find(u => u.username === username);
     if (user) {
       setCurrentUser(user);
       return true;
@@ -202,22 +222,46 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return false;
   };
   
-  const logout = () => {
+  const logout = async () => {
+    await auth.signOut();
     setCurrentUser(null);
   };
   
-  const importData = (data: any) => {
-     if (data.invoices) setInvoices(data.invoices);
-     if (data.payments) setPayments(data.payments);
-     if (data.suppliers) setSuppliers(data.suppliers);
-     if (data.users) setUsers(data.users);
-     if (data.settings) setSettings(data.settings);
+  const importData = async (data: any) => {
+     if (!firebaseUser) return;
+     const batch = writeBatch(db);
+     
+     if (data.invoices) {
+       data.invoices.forEach((inv: Invoice) => {
+         batch.set(doc(db, 'invoices', inv.id), inv);
+       });
+     }
+     if (data.payments) {
+       data.payments.forEach((pay: Payment) => {
+         batch.set(doc(db, 'payments', pay.id), pay);
+       });
+     }
+     if (data.suppliers) {
+       data.suppliers.forEach((sup: Supplier) => {
+         batch.set(doc(db, 'suppliers', sup.id), sup);
+       });
+     }
+     if (data.users) {
+       data.users.forEach((user: User) => {
+         batch.set(doc(db, 'users', user.id), user);
+       });
+     }
+     if (data.settings) {
+       batch.set(doc(db, 'settings', 'global'), data.settings);
+     }
+     
+     await batch.commit();
   };
 
   return (
     <AppContext.Provider
       value={{ 
-        invoices, payments, suppliers, users, currentUser, settings, 
+        invoices, payments, suppliers, users, currentUser, firebaseUser, settings, 
         addInvoices, updateInvoice, deleteInvoice, addPayment, updateSettings, 
         addSupplier, updateSupplier, deleteSupplier,
         addUser, updateUser, deleteUser,
